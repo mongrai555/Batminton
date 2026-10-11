@@ -30,4 +30,9 @@ public class Staff extends User {
     public boolean canCreateBookings() {
         return true;
     }
+
+    @Override
+    public boolean canViewMemberBookingHistory() {
+        return false; // สิทธิ์จำกัด: Staff ไม่สามารถดูประวัติการจองของสมาชิกทั้งหมดได้ (สงวนสำหรับ Admin)
+    }
 }

@@ -311,6 +311,9 @@
                         <Button fx:id="topUpPackageButton" onAction="#onTopUpPackageForSelectedMember"
                                 text="🎟️ ซื้อแพ็กเกจ 15 ชม. (2,600 บ.)"
                                 style="-fx-background-color: #0284c7; -fx-text-fill: white; -fx-font-weight: bold;" />
+                        <Button fx:id="viewMemberBookingHistoryButton" onAction="#onViewMemberBookingHistory"
+                                text="📜 ดูประวัติการจอง (Admin)"
+                                style="-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-weight: bold;" />
                         <Button fx:id="editMemberButton" onAction="#onEditSelectedMember"
                                 text="✏️ แก้ไขข้อมูล"
                                 style="-fx-background-color: #eab308; -fx-text-fill: black; -fx-font-weight: bold;" />
@@ -329,7 +332,11 @@
         <Tab fx:id="historyTab" text=" 📋 ประวัติการจองและบิล (History) ">
             <HBox spacing="15.0" style="-fx-padding: 15;">
                 <VBox prefWidth="550.0" spacing="10.0">
-                    <Label style="-fx-font-size: 15px; -fx-font-weight: bold;" text="รายการบิลที่บันทึกไว้ในระบบ" />
+                    <HBox alignment="CENTER_LEFT" spacing="10.0">
+                        <Label style="-fx-font-size: 15px; -fx-font-weight: bold;" text="รายการบิลที่บันทึกไว้ในระบบ" />
+                        <Region HBox.hgrow="ALWAYS" />
+                        <TextField fx:id="searchBillTextField" prefWidth="220.0" promptText="🔍 ค้นหาเลขที่บิล, ชื่อสมาชิก..." />
+                    </HBox>
                     <TableView fx:id="historyTableView" VBox.vgrow="ALWAYS">
                         <columns>
                             <TableColumn fx:id="colHistoryBillId" prefWidth="110.0" text="เลขที่บิล" />
@@ -351,44 +358,82 @@
         </Tab>
 
         <!-- ======================================================== -->
-        <!-- TAB 4: สรุปรายได้ผู้ดูแลระบบ (Admin Only Reports) -->
+        <!-- TAB 4: ผู้ดูแลระบบ & สรุปรายได้ (Admin Reports & Booking History) -->
         <!-- ======================================================== -->
-        <Tab fx:id="adminTab" text=" 📊 สรุปรายได้ (Admin Reports) ">
+        <Tab fx:id="adminTab" text=" 📊 ผู้ดูแลระบบ &amp; ประวัติการจอง (Admin Panel) ">
             <StackPane>
                 <!-- ป้ายเตือนหากสิทธิ์ไม่พอ -->
                 <Label fx:id="adminAccessDeniedLabel" visible="false"
                        style="-fx-font-size: 16px; -fx-text-fill: #dc2626; -fx-font-weight: bold; -fx-background-color: #fee2e2; -fx-padding: 30; -fx-background-radius: 8;"
-                       text="🔒 สิทธิ์ไม่เพียงพอ: ส่วนนี้จำกัดเฉพาะผู้ดูแลระบบ [ADMIN] เท่านั้น&#10;กรุณาสลับผู้ใช้ด้านบนเป็น [ADMIN] เพื่อดูข้อมูลสรุปรายได้" />
+                       text="🔒 สิทธิ์ไม่เพียงพอ: ส่วนนี้จำกัดเฉพาะผู้ดูแลระบบ [ADMIN] เท่านั้น&#10;กรุณาสลับผู้ใช้ด้านบนเป็น [ADMIN] เพื่อดูข้อมูลสรุปรายได้และประวัติการจองของสมาชิก" />
 
-                <!-- คอนเทนเนอร์รายงานการเงินสำหรับ Admin -->
-                <VBox fx:id="adminReportContainer" spacing="20.0" style="-fx-padding: 25;">
+                <!-- คอนเทนเนอร์รายงานการเงินและประวัติการจองสำหรับ Admin -->
+                <VBox fx:id="adminReportContainer" spacing="12.0" style="-fx-padding: 15;">
                     <HBox alignment="CENTER_LEFT" spacing="15.0">
                         <Label style="-fx-font-size: 14px; -fx-font-weight: bold;" text="เลือกวันที่ตรวจสอบรายได้:" />
                         <DatePicker fx:id="revenueDatePicker" />
                     </HBox>
 
-                    <HBox spacing="20.0">
+                    <HBox spacing="15.0">
                         <!-- รายได้ประจำวัน -->
-                        <VBox prefWidth="320.0" spacing="8.0"
-                              style="-fx-background-color: #eff6ff; -fx-padding: 20; -fx-background-radius: 8; -fx-border-color: #bfdbfe; -fx-border-radius: 8;">
-                            <Label style="-fx-text-fill: #1d4ed8; -fx-font-size: 14px; -fx-font-weight: bold;" text="รายได้ประจำวันที่เลือก (Daily)" />
-                            <Label fx:id="dailyRevenueLabel" style="-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #1e3a8a;" text="0.00 บาท" />
+                        <VBox prefWidth="340.0" spacing="6.0"
+                              style="-fx-background-color: #eff6ff; -fx-padding: 12 16 12 16; -fx-background-radius: 8; -fx-border-color: #bfdbfe; -fx-border-radius: 8;">
+                            <Label style="-fx-text-fill: #1d4ed8; -fx-font-size: 13px; -fx-font-weight: bold;" text="รายได้ประจำวันที่เลือก (Daily)" />
+                            <Label fx:id="dailyRevenueLabel" style="-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #1e3a8a;" text="0.00 บาท" />
                         </VBox>
 
                         <!-- รายได้ประจำเดือน -->
-                        <VBox prefWidth="320.0" spacing="8.0"
-                              style="-fx-background-color: #f0fdf4; -fx-padding: 20; -fx-background-radius: 8; -fx-border-color: #bbf7d0; -fx-border-radius: 8;">
-                            <Label style="-fx-text-fill: #15803d; -fx-font-size: 14px; -fx-font-weight: bold;" text="รายได้ประจำเดือนที่เลือก (Monthly)" />
-                            <Label fx:id="monthlyRevenueLabel" style="-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #14532d;" text="0.00 บาท" />
+                        <VBox prefWidth="340.0" spacing="6.0"
+                              style="-fx-background-color: #f0fdf4; -fx-padding: 12 16 12 16; -fx-background-radius: 8; -fx-border-color: #bbf7d0; -fx-border-radius: 8;">
+                            <Label style="-fx-text-fill: #15803d; -fx-font-size: 13px; -fx-font-weight: bold;" text="รายได้ประจำเดือนที่เลือก (Monthly)" />
+                            <Label fx:id="monthlyRevenueLabel" style="-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #14532d;" text="0.00 บาท" />
                         </VBox>
 
                         <!-- รายได้สะสมทั้งหมด -->
-                        <VBox prefWidth="320.0" spacing="8.0"
-                              style="-fx-background-color: #fefce8; -fx-padding: 20; -fx-background-radius: 8; -fx-border-color: #fef08a; -fx-border-radius: 8;">
-                            <Label style="-fx-text-fill: #a16207; -fx-font-size: 14px; -fx-font-weight: bold;" text="รายได้สะสมทั้งหมด (Total All-time)" />
-                            <Label fx:id="totalRevenueLabel" style="-fx-font-size: 26px; -fx-font-weight: bold; -fx-text-fill: #713f12;" text="0.00 บาท" />
+                        <VBox prefWidth="340.0" spacing="6.0"
+                              style="-fx-background-color: #fefce8; -fx-padding: 12 16 12 16; -fx-background-radius: 8; -fx-border-color: #fef08a; -fx-border-radius: 8;">
+                            <Label style="-fx-text-fill: #a16207; -fx-font-size: 13px; -fx-font-weight: bold;" text="รายได้สะสมทั้งหมด (Total All-time)" />
+                            <Label fx:id="totalRevenueLabel" style="-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #713f12;" text="0.00 บาท" />
                         </VBox>
                     </HBox>
+
+                    <Separator />
+
+                    <!-- Section: ประวัติการจองสนามของสมาชิก (Admin View) -->
+                    <VBox spacing="8.0" VBox.vgrow="ALWAYS">
+                        <HBox alignment="CENTER_LEFT" spacing="12.0">
+                            <Label text="🏸 ประวัติการจองสนามของสมาชิก (Member Court Booking History):"
+                                   style="-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #0f172a;" />
+                            <Region HBox.hgrow="ALWAYS" />
+                            <Label text="กรองตามสมาชิก:" style="-fx-font-weight: bold;" />
+                            <ComboBox fx:id="adminMemberFilterComboBox" prefWidth="260.0" promptText="-- ทั้งหมด / เลือกรหัสสมาชิก --" />
+                            <Button onAction="#onRefreshAdminBookingHistory" text="🔄 รีเฟรช"
+                                    style="-fx-background-color: #0284c7; -fx-text-fill: white; -fx-font-weight: bold;" />
+                        </HBox>
+
+                        <HBox spacing="12.0" VBox.vgrow="ALWAYS">
+                            <!-- ตารางประวัติการจองของสมาชิก -->
+                            <TableView fx:id="adminBookingTableView" VBox.vgrow="ALWAYS" prefWidth="680.0">
+                                <columns>
+                                    <TableColumn fx:id="colAdminBookBillId" prefWidth="95.0" text="เลขที่บิล" />
+                                    <TableColumn fx:id="colAdminBookDate" prefWidth="125.0" text="วันที่-เวลา" />
+                                    <TableColumn fx:id="colAdminBookMember" prefWidth="130.0" text="สมาชิก" />
+                                    <TableColumn fx:id="colAdminBookDetails" prefWidth="190.0" text="สนาม / ช่วงเวลาที่จอง" />
+                                    <TableColumn fx:id="colAdminBookHours" prefWidth="55.0" text="ชม." />
+                                    <TableColumn fx:id="colAdminBookTotal" prefWidth="80.0" text="ยอดชำระ" />
+                                    <TableColumn fx:id="colAdminBookSlip" prefWidth="75.0" text="สลิป" />
+                                </columns>
+                            </TableView>
+
+                            <!-- พรีวิวรายละเอียดบิลการจอง -->
+                            <VBox spacing="6.0" HBox.hgrow="ALWAYS" prefWidth="380.0">
+                                <Label text="📄 รายละเอียดการจอง &amp; ใบเสร็จรับเงิน:" style="-fx-font-weight: bold;" />
+                                <TextArea fx:id="adminBookingReceiptTextArea" editable="false"
+                                          style="-fx-font-family: 'Courier New', monospace; -fx-font-size: 11px;"
+                                          VBox.vgrow="ALWAYS" />
+                            </VBox>
+                        </HBox>
+                    </VBox>
                 </VBox>
             </StackPane>
         </Tab>

@@ -19,8 +19,10 @@ import java.io.File;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * Controller หลักสำหรับหน้าจอระบบจัดการสนามแบดมินตัน
@@ -110,6 +112,7 @@ public class MainBillingController {
     @FXML private Button deleteMemberButton;
     @FXML private Button topUpPackageButton;
     @FXML private Button selectMemberForBillingButton;
+    @FXML private Button viewMemberBookingHistoryButton;
 
     // --- Tab 3: Bill History ---
     @FXML private TextField searchBillTextField;
@@ -121,7 +124,7 @@ public class MainBillingController {
     @FXML private TableColumn<Bill, String> colHistorySlip;
     @FXML private TextArea receiptPreviewTextArea;
 
-    // --- Tab 4: Admin Revenue Summary ---
+    // --- Tab 4: Admin Revenue Summary & Booking History ---
     @FXML private VBox adminReportContainer;
     @FXML private Label adminAccessDeniedLabel;
     @FXML private DatePicker revenueDatePicker;
@@ -129,11 +132,23 @@ public class MainBillingController {
     @FXML private Label monthlyRevenueLabel;
     @FXML private Label totalRevenueLabel;
 
+    @FXML private ComboBox<String> adminMemberFilterComboBox;
+    @FXML private TableView<Bill> adminBookingTableView;
+    @FXML private TableColumn<Bill, String> colAdminBookBillId;
+    @FXML private TableColumn<Bill, String> colAdminBookDate;
+    @FXML private TableColumn<Bill, String> colAdminBookMember;
+    @FXML private TableColumn<Bill, String> colAdminBookDetails;
+    @FXML private TableColumn<Bill, Integer> colAdminBookHours;
+    @FXML private TableColumn<Bill, Double> colAdminBookTotal;
+    @FXML private TableColumn<Bill, String> colAdminBookSlip;
+    @FXML private TextArea adminBookingReceiptTextArea;
+
     // Internal State
     private final DataManager dataManager = DataManager.getInstance();
     private final ObservableList<Billable> currentBillItems = FXCollections.observableArrayList();
     private final ObservableList<Member> memberObservableList = FXCollections.observableArrayList();
     private final ObservableList<Bill> historyList = FXCollections.observableArrayList();
+    private final ObservableList<Bill> adminBookingList = FXCollections.observableArrayList();
     private String selectedSlipFilePath = null;
     private static final AtomicInteger billCounter = new AtomicInteger(1001);
 
@@ -178,20 +193,23 @@ public class MainBillingController {
         if (current instanceof Admin) {
             userRoleBadgeLabel.setText("[ ADMIN ]");
             userRoleBadgeLabel.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; -fx-padding: 3 8 3 8; -fx-background-radius: 4; -fx-font-weight: bold;");
-            userPermissionLabel.setText("สิทธิ์: ผู้ดูแลระบบสูงสุด (จัดการ/ลบสมาชิกได้, ดูรายงานรายได้ทั้งหมด)");
+            userPermissionLabel.setText("สิทธิ์: ผู้ดูแลระบบสูงสุด (จัดการ/ลบสมาชิกได้, ดูประวัติการจองของสมาชิก, ดูรายงานรายได้)");
             
             // ปลดล็อคฟีเจอร์สำหรับ Admin
             deleteMemberButton.setDisable(false);
+            if (viewMemberBookingHistoryButton != null) viewMemberBookingHistoryButton.setDisable(false);
             if (adminReportContainer != null) adminReportContainer.setVisible(true);
             if (adminAccessDeniedLabel != null) adminAccessDeniedLabel.setVisible(false);
             refreshRevenueKpis();
+            loadAdminBookingHistory();
         } else {
             userRoleBadgeLabel.setText("[ STAFF ]");
             userRoleBadgeLabel.setStyle("-fx-background-color: #16a34a; -fx-text-fill: white; -fx-padding: 3 8 3 8; -fx-background-radius: 4; -fx-font-weight: bold;");
             userPermissionLabel.setText("สิทธิ์: พนักงานแคชเชียร์ (สมัครสมาชิก, บันทึกการจอง, ออกบิล)");
 
-            // จำกัดสิทธิ์ของ Staff
-            deleteMemberButton.setDisable(false); // ให้กดได้ แต่จะแจ้งเตือน SecurityException ตาม OOP Rule
+            // จำกัดสิทธิ์ของ Staff (กดได้เพื่อทดสอบ SecurityException ตามหลัก OOP)
+            deleteMemberButton.setDisable(false);
+            if (viewMemberBookingHistoryButton != null) viewMemberBookingHistoryButton.setDisable(false);
             if (adminReportContainer != null) adminReportContainer.setVisible(false);
             if (adminAccessDeniedLabel != null) adminAccessDeniedLabel.setVisible(true);
         }
@@ -522,6 +540,7 @@ public class MainBillingController {
         dataManager.saveBill(bill);
         historyList.setAll(dataManager.getBillHistory());
         refreshRevenueKpis();
+        loadAdminBookingHistory();
 
         Alert receiptAlert = new Alert(Alert.AlertType.INFORMATION);
         receiptAlert.setTitle("บันทึกการชำระเงินและออกบิลสำเร็จ");
@@ -607,6 +626,7 @@ public class MainBillingController {
 
             dataManager.addMember(newMember);
             refreshMemberListData();
+            refreshAdminMemberFilterComboBox();
             memberComboBox.getSelectionModel().select(newMember);
 
             showSuccessAlert("สมัครสมาชิกสำเร็จ!\nรหัสสมาชิก: " + newMember.getId() + "\nชื่อ: " + newMember.getName() +
@@ -682,6 +702,8 @@ public class MainBillingController {
             try {
                 dataManager.deleteMember(selected.getId(), operator);
                 refreshMemberListData();
+                refreshAdminMemberFilterComboBox();
+                loadAdminBookingHistory();
                 showSuccessAlert("ลบสมาชิกเรียบร้อยแล้ว");
             } catch (SecurityException ex) {
                 showAlert(ex.getMessage());
@@ -748,12 +770,200 @@ public class MainBillingController {
                 receiptPreviewTextArea.setText(newVal.generateReceiptText());
             }
         });
+
+        // ค้นหาบิลแบบ Real-time
+        if (searchBillTextField != null) {
+            searchBillTextField.textProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal == null || newVal.trim().isEmpty()) {
+                    historyList.setAll(dataManager.getBillHistory());
+                } else {
+                    String query = newVal.trim().toLowerCase();
+                    List<Bill> filtered = dataManager.getBillHistory().stream()
+                            .filter(b -> b.getBillId().toLowerCase().contains(query) ||
+                                         (b.getMember() != null && (b.getMember().getName().toLowerCase().contains(query) ||
+                                                                    b.getMember().getId().toLowerCase().contains(query) ||
+                                                                    b.getMember().getPhone().toLowerCase().contains(query))))
+                            .collect(Collectors.toList());
+                    historyList.setAll(filtered);
+                }
+            });
+        }
     }
 
     private void setupAdminTab() {
         revenueDatePicker.setValue(LocalDate.now());
         revenueDatePicker.valueProperty().addListener((obs, oldVal, newVal) -> refreshRevenueKpis());
         refreshRevenueKpis();
+        setupAdminBookingTable();
+    }
+
+    private void setupAdminBookingTable() {
+        if (adminBookingTableView == null) return;
+
+        colAdminBookBillId.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getBillId()));
+        colAdminBookDate.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getFormattedDate()));
+        colAdminBookMember.setCellValueFactory(cell -> new SimpleStringProperty(
+                cell.getValue().getMember() != null ?
+                        cell.getValue().getMember().getName() + " (" + cell.getValue().getMember().getId() + ")" : "ทั่วไป"));
+        colAdminBookDetails.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getCourtBookingSummary()));
+        colAdminBookHours.setCellValueFactory(cell -> new SimpleIntegerProperty(cell.getValue().getTotalCourtHours()).asObject());
+        colAdminBookTotal.setCellValueFactory(cell -> new SimpleDoubleProperty(cell.getValue().calculateGrandTotal()).asObject());
+        colAdminBookSlip.setCellValueFactory(cell -> new SimpleStringProperty(
+                cell.getValue().hasSlip() ? "แนบแล้ว ✓" : "ชำระแล้ว"));
+
+        adminBookingTableView.setItems(adminBookingList);
+
+        adminBookingTableView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && adminBookingReceiptTextArea != null) {
+                adminBookingReceiptTextArea.setText(newVal.generateReceiptText());
+            }
+        });
+
+        refreshAdminMemberFilterComboBox();
+
+        if (adminMemberFilterComboBox != null) {
+            adminMemberFilterComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+                filterAdminBookingHistory(newVal);
+            });
+        }
+
+        loadAdminBookingHistory();
+    }
+
+    private void refreshAdminMemberFilterComboBox() {
+        if (adminMemberFilterComboBox == null) return;
+        String currentSelection = adminMemberFilterComboBox.getValue();
+        ObservableList<String> options = FXCollections.observableArrayList();
+        options.add("ทั้งหมด (สมาชิกทุกคน)");
+        for (Member m : dataManager.getMembers()) {
+            options.add(m.getId() + " - " + m.getName());
+        }
+        adminMemberFilterComboBox.setItems(options);
+        if (currentSelection != null && options.contains(currentSelection)) {
+            adminMemberFilterComboBox.setValue(currentSelection);
+        } else {
+            adminMemberFilterComboBox.getSelectionModel().selectFirst();
+        }
+    }
+
+    private void loadAdminBookingHistory() {
+        filterAdminBookingHistory(adminMemberFilterComboBox != null ? adminMemberFilterComboBox.getValue() : null);
+    }
+
+    private void filterAdminBookingHistory(String selection) {
+        User operator = dataManager.getCurrentUser();
+        if (operator == null || !operator.canViewMemberBookingHistory()) {
+            adminBookingList.clear();
+            if (adminBookingReceiptTextArea != null) {
+                adminBookingReceiptTextArea.clear();
+            }
+            return;
+        }
+
+        String memberId = null;
+        if (selection != null && !selection.startsWith("ทั้งหมด")) {
+            String[] parts = selection.split(" - ");
+            if (parts.length > 0) {
+                memberId = parts[0].trim();
+            }
+        }
+
+        try {
+            List<Bill> bookings = dataManager.getMemberBookingHistory(memberId, operator);
+            adminBookingList.setAll(bookings);
+            if (!adminBookingList.isEmpty()) {
+                adminBookingTableView.getSelectionModel().selectFirst();
+            } else if (adminBookingReceiptTextArea != null) {
+                adminBookingReceiptTextArea.setText("--- ไม่พบประวัติการจองสนามสำหรับสมาชิกที่เลือก ---");
+            }
+        } catch (SecurityException ex) {
+            showAlert(ex.getMessage());
+        }
+    }
+
+    @FXML
+    public void onRefreshAdminBookingHistory() {
+        refreshAdminMemberFilterComboBox();
+        loadAdminBookingHistory();
+        refreshRevenueKpis();
+    }
+
+    @FXML
+    public void onViewMemberBookingHistory() {
+        Member selected = memberTableView.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showAlert("กรุณาเลือกสมาชิกที่ต้องการดูประวัติการจองในตาราง");
+            return;
+        }
+
+        User operator = dataManager.getCurrentUser();
+        // ตรวจสอบสิทธิ์ OOP: canViewMemberBookingHistory()
+        if (!operator.canViewMemberBookingHistory()) {
+            showAlert("⛔ สิทธิ์ไม่เพียงพอ!\nบทบาทปัจจุบันของคุณคือ [" + operator.getRole() + "]\nการดูประวัติการจองของสมาชิกต้องทำโดยผู้ดูแลระบบ [ADMIN] เท่านั้น");
+            return;
+        }
+
+        try {
+            List<Bill> history = dataManager.getMemberBookingHistory(selected.getId(), operator);
+
+            Alert dialog = new Alert(Alert.AlertType.INFORMATION);
+            dialog.setTitle("ประวัติการจองของสมาชิก (Admin View)");
+            dialog.setHeaderText("ประวัติการจองสนาม: " + selected.getName() + " (" + selected.getId() + ")");
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("============================================================\n");
+            sb.append(String.format("ข้อมูลสมาชิก: %s (%s)\n", selected.getName(), selected.getId()));
+            sb.append(String.format("เบอร์โทรศัพท์: %s\n", selected.getPhone()));
+            sb.append(String.format("ชั่วโมงสะสมรวม: %d ชม. | คงเหลือแพ็กเกจ: %d ชม.\n",
+                    selected.getAccumulatedHours(), selected.getRemainingPackageHours()));
+            sb.append(String.format("สถานะสิทธิ์ลด 30%%: %s\n", selected.getDiscountStatusDescription()));
+            sb.append("============================================================\n");
+            sb.append(String.format("จำนวนครั้งที่เคยจองสนาม: %d รายการ\n", history.size()));
+            sb.append("------------------------------------------------------------\n");
+
+            if (history.isEmpty()) {
+                sb.append("ยังไม่มีประวัติการจองสนามแบดมินตันสำหรับสมาชิกท่านนี้\n");
+            } else {
+                int count = 1;
+                for (Bill b : history) {
+                    sb.append(String.format("[%d] เลขที่บิล: %s | วันที่: %s\n", count++, b.getBillId(), b.getFormattedDate()));
+                    sb.append(String.format("    รายการสนาม: %s\n", b.getCourtBookingSummary()));
+                    sb.append(String.format("    ยอดรวม: %.2f บาท | สลิป: %s | ผู้รับเงิน: %s\n",
+                            b.calculateGrandTotal(), b.hasSlip() ? "แนบสลิปแล้ว ✓" : "ชำระเงินแล้ว",
+                            b.getOperator() != null ? b.getOperator().getName() : "-"));
+                    sb.append("------------------------------------------------------------\n");
+                }
+            }
+
+            TextArea area = new TextArea(sb.toString());
+            area.setEditable(false);
+            area.setPrefWidth(580);
+            area.setPrefHeight(420);
+            area.setStyle("-fx-font-family: 'Courier New', monospace; -fx-font-size: 12px;");
+
+            ButtonType viewInAdminTabBtn = new ButtonType("🔍 ดูในแท็บผู้ดูแลระบบ (Admin Tab)");
+            ButtonType closeBtn = new ButtonType("ปิด", ButtonBar.ButtonData.CANCEL_CLOSE);
+            dialog.getButtonTypes().setAll(viewInAdminTabBtn, closeBtn);
+
+            dialog.getDialogPane().setContent(area);
+            Optional<ButtonType> clicked = dialog.showAndWait();
+
+            if (clicked.isPresent() && clicked.get() == viewInAdminTabBtn) {
+                mainTabPane.getSelectionModel().select(adminTab);
+                if (adminMemberFilterComboBox != null) {
+                    String targetPrefix = selected.getId() + " -";
+                    for (String item : adminMemberFilterComboBox.getItems()) {
+                        if (item.startsWith(targetPrefix)) {
+                            adminMemberFilterComboBox.setValue(item);
+                            break;
+                        }
+                    }
+                }
+            }
+
+        } catch (SecurityException ex) {
+            showAlert(ex.getMessage());
+        }
     }
 
     private void refreshRevenueKpis() {

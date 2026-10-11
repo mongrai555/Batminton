@@ -57,6 +57,24 @@ public class DataManager {
         catalogProducts.add(new ProductSaleItem("ไม้แบดมินตัน Yonex Astrox", 1250.0, 1));
         catalogProducts.add(new ProductSaleItem("น้ำดื่มเกลือแร่สปอนเซอร์", 25.0, 1));
         catalogProducts.add(new ProductSaleItem("น้ำดื่มขวด 600ml", 15.0, 1));
+
+        // ข้อมูลตัวอย่างประวัติการจองสนามของสมาชิก (ให้ Admin ตรวจสอบได้ทันที)
+        Member m1 = members.get(0); // สมชาย สายตบ (M001)
+        Bill sampleBill1 = new Bill("INV-1001", m1, defaultStaff);
+        sampleBill1.addItem(new CourtRentalItem(1, LocalDate.now().minusDays(2).toString(), "17:00 - 18:00 น.", 2, 0, PricingService.COURT_HOURLY_RATE, 0.0, false));
+        sampleBill1.addItem(new EquipmentRentalItem("เช่ารองเท้า", 1));
+        sampleBill1.setSlipImagePath("sample_slip_1001.png");
+        billHistory.add(sampleBill1);
+
+        Bill sampleBill2 = new Bill("INV-1002", m1, defaultStaff);
+        sampleBill2.addItem(new CourtRentalItem(4, LocalDate.now().minusDays(1).toString(), "18:00 - 19:00 น.", 1, 0, PricingService.COURT_HOURLY_RATE, 0.0, false));
+        sampleBill2.addItem(new ProductSaleItem("น้ำดื่มขวด 600ml", 15.0, 2));
+        billHistory.add(sampleBill2);
+
+        Member m2Ref = members.get(1); // วีระ แบดบอย (M002)
+        Bill sampleBill3 = new Bill("INV-1003", m2Ref, defaultStaff);
+        sampleBill3.addItem(new CourtRentalItem(2, LocalDate.now().toString(), "14:00 - 16:00 น.", 2, 2, PricingService.COURT_HOURLY_RATE, 0.0, false));
+        billHistory.add(sampleBill3);
     }
 
     // --- Role & User Management ---
@@ -183,5 +201,29 @@ public class DataManager {
                 .filter(b -> b.getTimestamp().getYear() == year && b.getTimestamp().getMonthValue() == month)
                 .mapToDouble(Bill::calculateGrandTotal)
                 .sum();
+    }
+
+    /**
+     * ดึงประวัติการจองสนามของสมาชิก (พร้อมตรวจสอบสิทธิ์ตามหลัก OOP: canViewMemberBookingHistory)
+     *
+     * @param memberId รหัสสมาชิก (หากเป็น null หรือ "ALL" หรือว่าง จะดึงประวัติการจองของสมาชิกทั้งหมด)
+     * @param operator ผู้ใช้ระบบปัจจุบัน
+     * @return รายการบิลการจองสนามของสมาชิก
+     */
+    public List<Bill> getMemberBookingHistory(String memberId, User operator) {
+        if (operator == null || !operator.canViewMemberBookingHistory()) {
+            throw new SecurityException("สิทธิ์ไม่เพียงพอ: บัญชีผู้ใช้นี้ (" +
+                    (operator != null ? operator.getRole() : "UNKNOWN") + ") ไม่มีสิทธิ์ดูประวัติการจองของสมาชิก ต้องใช้สิทธิ์ ADMIN เท่านั้น");
+        }
+        if (memberId == null || memberId.trim().isEmpty() || memberId.equalsIgnoreCase("ALL")) {
+            return billHistory.stream()
+                    .filter(b -> b.getMember() != null && b.hasCourtBooking())
+                    .collect(Collectors.toList());
+        }
+        return billHistory.stream()
+                .filter(b -> b.getMember() != null &&
+                             b.getMember().getId().equalsIgnoreCase(memberId.trim()) &&
+                             b.hasCourtBooking())
+                .collect(Collectors.toList());
     }
 }

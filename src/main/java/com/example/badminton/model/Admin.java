@@ -29,4 +29,9 @@ public class Admin extends User {
     public boolean canCreateBookings() {
         return true;
     }
+
+    @Override
+    public boolean canViewMemberBookingHistory() {
+        return true; // Admin มีสิทธิ์ดูประวัติการจองของสมาชิก
+    }
 }

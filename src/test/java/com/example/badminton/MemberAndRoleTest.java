@@ -28,12 +28,14 @@ public class MemberAndRoleTest {
         assertTrue(staff.canCreateBookings(), "Staff ต้องสามารถเปิดบิล/จองสนามได้");
         assertFalse(staff.canDeleteMembers(), "Staff ต้องไม่สามารถลบสมาชิกได้");
         assertFalse(staff.canViewFinancialReports(), "Staff ต้องไม่มีสิทธิ์ดูรายงานการเงินผู้ดูแลระบบ");
+        assertFalse(staff.canViewMemberBookingHistory(), "Staff ต้องไม่มีสิทธิ์ดูประวัติการจองของสมาชิก");
 
         // Admin Permissions
         assertTrue(admin.canRegisterMembers(), "Admin สามารถสมัครสมาชิกได้");
         assertTrue(admin.canCreateBookings(), "Admin สามารถจองสนามได้");
         assertTrue(admin.canDeleteMembers(), "Admin สามารถลบสมาชิกได้");
         assertTrue(admin.canViewFinancialReports(), "Admin สามารถดูรายงานการเงินได้");
+        assertTrue(admin.canViewMemberBookingHistory(), "Admin ต้องสามารถดูประวัติการจองของสมาชิกได้");
     }
 
     @Test
@@ -80,5 +82,28 @@ public class MemberAndRoleTest {
         assertNotNull(m19);
         assertTrue(m19.isEligibleFor20thHourDiscount());
         assertTrue(m19.getDiscountStatusDescription().contains("30%"));
+    }
+
+    @Test
+    void testAdminCanViewMemberBookingHistory() {
+        // Admin สามารถเรียกดูประวัติการจองของสมาชิก M001 ได้
+        var history = dataManager.getMemberBookingHistory("M001", admin);
+        assertNotNull(history);
+        assertFalse(history.isEmpty(), "M001 ต้องมีประวัติการจองสนามตัวอย่างในระบบ");
+        assertTrue(history.stream().allMatch(b -> b.getMember().getId().equals("M001")));
+        assertTrue(history.stream().anyMatch(b -> b.hasCourtBooking()));
+
+        // Admin สามารถเรียกดูประวัติการจองของสมาชิกทั้งหมดได้ (เมื่อส่ง "ALL" หรือ null)
+        var allBookings = dataManager.getMemberBookingHistory("ALL", admin);
+        assertNotNull(allBookings);
+        assertTrue(allBookings.size() >= history.size());
+    }
+
+    @Test
+    void testStaffCannotViewMemberBookingHistory_ThrowsSecurityException() {
+        // Staff พยายามดูประวัติการจองของสมาชิก M001 -> ต้องโยน SecurityException ตามหลัก OOP
+        assertThrows(SecurityException.class, () -> {
+            dataManager.getMemberBookingHistory("M001", staff);
+        }, "เมื่อ Staff พยายามดูประวัติการจองของสมาชิก ต้องปฏิเสธสิทธิ์ด้วย SecurityException");
     }
 }

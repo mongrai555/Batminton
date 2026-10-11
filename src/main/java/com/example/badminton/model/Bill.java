@@ -153,6 +153,40 @@ public class Bill {
         return sb.toString();
     }
 
+    public boolean hasCourtBooking() {
+        return items.stream().anyMatch(item -> item instanceof CourtRentalItem);
+    }
+
+    public List<CourtRentalItem> getCourtRentalItems() {
+        List<CourtRentalItem> list = new ArrayList<>();
+        for (Billable item : items) {
+            if (item instanceof CourtRentalItem) {
+                list.add((CourtRentalItem) item);
+            }
+        }
+        return list;
+    }
+
+    public String getCourtBookingSummary() {
+        StringBuilder sb = new StringBuilder();
+        for (Billable item : items) {
+            if (item instanceof CourtRentalItem) {
+                CourtRentalItem cri = (CourtRentalItem) item;
+                if (sb.length() > 0) sb.append(", ");
+                sb.append(String.format("สนาม %d (%s เวลา %s)",
+                        cri.getCourtNumber(), cri.getBookingDate(), cri.getTimeSlot()));
+            }
+        }
+        return sb.length() > 0 ? sb.toString() : "-";
+    }
+
+    public int getTotalCourtHours() {
+        return items.stream()
+                .filter(item -> item instanceof CourtRentalItem)
+                .mapToInt(Billable::getQuantity)
+                .sum();
+    }
+
     private String truncate(String text, int maxLength) {
         if (text == null) return "";
         if (text.length() <= maxLength) return text;

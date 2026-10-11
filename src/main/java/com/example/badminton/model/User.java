@@ -35,6 +35,7 @@ public abstract class User {
     public abstract boolean canDeleteMembers();
     public abstract boolean canViewFinancialReports();
     public abstract boolean canCreateBookings();
+    public abstract boolean canViewMemberBookingHistory();
 
     @Override
     public String toString() {

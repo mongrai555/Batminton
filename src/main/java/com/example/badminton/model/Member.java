@@ -96,6 +96,11 @@ public class Member extends User {
     }
 
     @Override
+    public boolean canViewMemberBookingHistory() {
+        return false;
+    }
+
+    @Override
     public String toString() {
         return String.format("%s - %s (%s)", id, name, phone);
     }

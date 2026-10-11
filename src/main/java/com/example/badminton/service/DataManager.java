@@ -69,11 +69,13 @@ public class DataManager {
         Bill sampleBill2 = new Bill("INV-1002", m1, defaultStaff);
         sampleBill2.addItem(new CourtRentalItem(4, LocalDate.now().minusDays(1).toString(), "18:00 - 19:00 น.", 1, 0, PricingService.COURT_HOURLY_RATE, 0.0, false));
         sampleBill2.addItem(new ProductSaleItem("น้ำดื่มขวด 600ml", 15.0, 2));
+        sampleBill2.setSlipImagePath("sample_slip_1002.png");
         billHistory.add(sampleBill2);
 
         Member m2Ref = members.get(1); // วีระ แบดบอย (M002)
         Bill sampleBill3 = new Bill("INV-1003", m2Ref, defaultStaff);
         sampleBill3.addItem(new CourtRentalItem(2, LocalDate.now().toString(), "14:00 - 16:00 น.", 2, 2, PricingService.COURT_HOURLY_RATE, 0.0, false));
+        sampleBill3.setSlipImagePath("sample_slip_1003.png");
         billHistory.add(sampleBill3);
     }
 

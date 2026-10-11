@@ -1,6 +1,7 @@
 package com.example.badminton;
 
 import com.example.badminton.model.Admin;
+import com.example.badminton.model.Bill;
 import com.example.badminton.model.Member;
 import com.example.badminton.model.Staff;
 import com.example.badminton.service.DataManager;
@@ -105,5 +106,22 @@ public class MemberAndRoleTest {
         assertThrows(SecurityException.class, () -> {
             dataManager.getMemberBookingHistory("M001", staff);
         }, "เมื่อ Staff พยายามดูประวัติการจองของสมาชิก ต้องปฏิเสธสิทธิ์ด้วย SecurityException");
+    }
+
+    @Test
+    void testBillSlipRequirementAndStatus() {
+        Member m = dataManager.findMemberById("M001");
+        Bill bill = new Bill("INV-TEST-SLIP", m, staff);
+
+        // ก่อนแนบสลิป
+        assertFalse(bill.hasSlip(), "บิลที่ยังไม่ได้แนบสลิป hasSlip() ต้องเป็น false");
+        assertNull(bill.getSlipImagePath());
+        assertTrue(bill.generateReceiptText().contains("ยังไม่ได้แนบสลิป"));
+
+        // หลังแนบสลิป
+        bill.setSlipImagePath("slips/payment_001.png");
+        assertTrue(bill.hasSlip(), "บิลที่แนบสลิปแล้ว hasSlip() ต้องเป็น true");
+        assertEquals("slips/payment_001.png", bill.getSlipImagePath());
+        assertTrue(bill.generateReceiptText().contains("[PAID]"));
     }
 }

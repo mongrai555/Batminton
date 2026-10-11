@@ -164,19 +164,19 @@
                                 text="🗑️ ลบรายการที่เลือก" />
                     </HBox>
 
-                    <!-- การแนบสลิปโอนเงิน -->
-                    <TitledPane animated="false" collapsible="false" text="📎 แนบสลิปหลักฐานการชำระเงิน">
+                    <!-- การแนบสลิปโอนเงิน (บังคับแนบก่อนชำระเงิน) -->
+                    <TitledPane animated="false" collapsible="false" text="📎 แนบสลิปหลักฐานการชำระเงิน (ต้องแนบสลิปก่อนชำระเงิน)">
                         <HBox alignment="CENTER_LEFT" spacing="15.0">
                             <VBox spacing="6.0" HBox.hgrow="ALWAYS">
                                 <HBox alignment="CENTER_LEFT" spacing="10.0">
                                     <Button fx:id="attachSlipButton" onAction="#onAttachSlip"
                                             style="-fx-background-color: #0284c7; -fx-text-fill: white; -fx-font-weight: bold;"
                                             text="📁 เลือกไฟล์รูปสลิป (Upload Slip)" />
-                                    <Label fx:id="slipPathLabel" style="-fx-text-fill: #64748b; -fx-font-size: 12px;"
-                                           text="ยังไม่ได้แนบสลิป" />
+                                    <Label fx:id="slipPathLabel" style="-fx-text-fill: #dc2626; -fx-font-size: 12px; -fx-font-weight: bold;"
+                                           text="⚠️ ยังไม่ได้แนบสลิป (ต้องแนบสลิปก่อนชำระเงิน)" />
                                 </HBox>
-                                <Label style="-fx-font-size: 11px; -fx-text-fill: #94a3b8;"
-                                       text="รองรับไฟล์ภาพ JPG, PNG (จะถูกบันทึกและตรวจสอบได้ในประวัติบิล)" />
+                                <Label style="-fx-font-size: 11px; -fx-text-fill: #b91c1c; -fx-font-weight: bold;"
+                                       text="* กฎของระบบ: ต้องแนบรูปสลิปการโอนเงินก่อน จึงจะสามารถกดบันทึกชำระเงินและออกบิลได้" />
                             </VBox>
                             <StackPane prefHeight="70.0" prefWidth="80.0"
                                        style="-fx-border-color: #cbd5e1; -fx-border-style: dashed; -fx-background-color: #f1f5f9;">

@@ -166,6 +166,11 @@ public class MainBillingController {
 
         recalculateLiveBill();
         refreshNextMemberId();
+
+        if (slipPathLabel != null) {
+            slipPathLabel.setText("⚠️ ยังไม่ได้แนบสลิป (ต้องแนบสลิปก่อนชำระเงิน)");
+            slipPathLabel.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 12px; -fx-font-weight: bold;");
+        }
     }
 
     // ==========================================
@@ -496,12 +501,13 @@ public class MainBillingController {
         File file = fileChooser.showOpenDialog(attachSlipButton.getScene().getWindow());
         if (file != null) {
             selectedSlipFilePath = file.getAbsolutePath();
-            slipPathLabel.setText(file.getName());
+            slipPathLabel.setText("✓ แนบสลิปเรียบร้อย: " + file.getName());
+            slipPathLabel.setStyle("-fx-text-fill: #16a34a; -fx-font-size: 12px; -fx-font-weight: bold;");
             try {
                 Image image = new Image(file.toURI().toString(), 150, 150, true, true);
                 slipPreviewImageView.setImage(image);
             } catch (Exception ex) {
-                slipPathLabel.setText("แนบไฟล์แล้ว: " + file.getName());
+                // คงสถานะแนบสลิปไว้
             }
         }
     }
@@ -516,6 +522,16 @@ public class MainBillingController {
         Member currentMember = memberComboBox.getValue();
         if (courtBookingCheckBox.isSelected() && currentMember == null) {
             showAlert("ตามกฎระเบียบ: ผู้ที่สามารถจองสนามแบดมินตันได้ ต้องสมัครเป็นสมาชิกเท่านั้น!");
+            return;
+        }
+
+        // กฎระเบียบบังคับ: ต้องแนบสลิปหลักฐานการชำระเงินก่อนถึงจะชำระเงินได้
+        if (selectedSlipFilePath == null || selectedSlipFilePath.trim().isEmpty()) {
+            Alert slipAlert = new Alert(Alert.AlertType.WARNING);
+            slipAlert.setTitle("ต้องแนบสลิปก่อนชำระเงิน");
+            slipAlert.setHeaderText("⛔ ยังไม่ได้แนบสลิปหลักฐานการชำระเงิน!");
+            slipAlert.setContentText("ตามกฎระเบียบของระบบ: ต้องแนบไฟล์รูปสลิปหลักฐานการโอนเงินก่อน จึงจะสามารถบันทึกการชำระเงินและออกบิลได้");
+            slipAlert.showAndWait();
             return;
         }
 
@@ -566,7 +582,8 @@ public class MainBillingController {
         rentShoesCheckBox.setSelected(false);
         rentRacketCheckBox.setSelected(false);
         selectedSlipFilePath = null;
-        slipPathLabel.setText("ยังไม่ได้แนบสลิป");
+        slipPathLabel.setText("⚠️ ยังไม่ได้แนบสลิป (ต้องแนบสลิปก่อนชำระเงิน)");
+        slipPathLabel.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 12px; -fx-font-weight: bold;");
         slipPreviewImageView.setImage(null);
         currentBillItems.clear();
         recalculateLiveBill();
